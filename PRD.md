@@ -970,3 +970,186 @@ The following operations always produce an `AuditLog` record with actor, before-
 - AI-assisted handover summarization.
 - What-if simulation for future staffing changes.
 - Mobile app or PWA support.
+
+---
+
+## 17. Microservices Architecture (Event-Driven)
+
+### 17.1 Architectural Principles
+
+| Principle | Rule |
+|---|---|
+| **READ** | Synchronous REST (`GET`) — served directly from each service's own read model / projection. |
+| **CREATE / UPDATE / DELETE** | Asynchronous only — caller writes to the service's **outbox table** inside the same DB transaction as the domain entity write. A Debezium CDC connector (or polling publisher) reads the outbox and publishes to Kafka. No direct cross-service DB calls. |
+| **Outbox pattern** | Every CUD operation produces one `outbox_events` row (`id`, `aggregateType`, `aggregateId`, `eventType`, `payload JSON`, `createdAt`, `published`). Atomicity is guaranteed because the domain write and the outbox row share the same ACID transaction. |
+| **Event consumers** | Each service subscribes to the Kafka topics it cares about and maintains its own local read model (denormalized projection table or cache). |
+| **API Gateway** | Single entry point for all Angular UI and external calls. Validates JWT, enforces `@agilysys.com` domain on every request, rate-limits, and routes to the correct downstream service. |
+
+---
+
+### 17.2 Microservice Catalogue
+
+| # | Service | Owns (entities / data) | Publishes events to Kafka | Consumes events from |
+|---|---|---|---|---|
+| 1 | **api-gateway-service** | Routing rules, rate-limit config, JWT public keys | — | — |
+| 2 | **identity-service** | `Member`, `member_system_roles`, `NotificationPreference` | `oncall.identity.events` | — |
+| 3 | **team-policy-service** | `Team`, `TeamMembership`, `RotationPolicy`, `SubSessionDefinition`, `ShiftDefinition`, `HolidayCalendar` | `oncall.team.events` | `oncall.identity.events` |
+| 4 | **schedule-service** | `OnCallSession` (DRAFT/PUBLISHED), `ScheduleDraft` | `oncall.schedule.events` | `oncall.team.events`, `oncall.availability.events` |
+| 5 | **assignment-service** | `OnCallAssignment`, `OnCallHistory` | `oncall.assignment.events` | `oncall.schedule.events`, `oncall.availability.events`, `oncall.approval.events` |
+| 6 | **worklog-service** | `OnCallWorkLog`, `WorkLogEntry` | `oncall.worklog.events` | `oncall.assignment.events` |
+| 7 | **ticket-service** | `DevOpsTicketRecord`, `AzureDevOpsConfig` | `oncall.ticket.events` | `oncall.worklog.events` |
+| 8 | **handover-service** | `Handover`, `HandoverParticipant` | `oncall.handover.events` | `oncall.assignment.events`, `oncall.schedule.events` |
+| 9 | **availability-service** | `LeaveRequest`, `EmergencyOOO`, `MidweekReassignment`, `SwapRequest` | `oncall.availability.events` | `oncall.assignment.events`, `oncall.approval.events` |
+| 10 | **approval-service** | `ApprovalRecord`, `ManagerDelegation` | `oncall.approval.events` | `oncall.availability.events`, `oncall.assignment.events`, `oncall.identity.events` |
+| 11 | **notification-service** | `NotificationEvent` (local projection of preferences) | `oncall.notification.events` | ALL topics — subscribes to every domain event that triggers a notification |
+| 12 | **audit-service** | `AuditLog` | — (append-only sink) | ALL topics — writes one `AuditLog` row per sensitive domain event |
+| 13 | **reporting-service** | Denormalized read-model projections for all report types | — | ALL topics — maintains up-to-date aggregates for coverage, fairness, SLA, handover compliance |
+
+**Total: 13 services** (1 gateway + 12 domain/infrastructure services)
+
+---
+
+### 17.3 Kafka Topic Map
+
+```
+oncall.identity.events
+  MemberCreated | MemberUpdated | MemberDeactivated
+  TeamMembershipAdded | TeamMembershipRemoved
+  EligibilityFlagChanged | NotificationPreferenceUpdated
+
+oncall.team.events
+  TeamCreated | TeamUpdated | TeamDeactivated
+  PolicyCreated | PolicyUpdated
+  SubSessionDefinitionChanged
+  HolidayCalendarUpdated | ShiftDefinitionUpdated
+
+oncall.schedule.events
+  ScheduleDraftCreated | ScheduleDraftPublished
+  SessionCreated | SessionPublished | SessionCancelled
+  ConstraintRelaxationWarned | ConstraintRelaxationApproved
+  HolidayShiftFlagged
+
+oncall.assignment.events
+  AssignmentCreated | AssignmentActivated | AssignmentCompleted
+  AssignmentPartiallyCredited | AssignmentCancelled
+  OnCallHistoryRecorded
+
+oncall.availability.events
+  LeaveRequestSubmitted | LeaveRequestApproved | LeaveRequestRejected
+  EmergencyOOODeclared | EmergencyReplacementSelected
+  MidweekReassignmentRequested | MidweekReassignmentApproved | MidweekReassignmentRejected
+  SwapRequestSubmitted | SwapRequestApproved | SwapRequestRejected
+
+oncall.approval.events
+  ApprovalRecordCreated | ApprovalActioned | ApprovalSLAExpired | ApprovalEscalated
+  DelegationCreated | DelegationRevoked
+
+oncall.handover.events
+  HandoverCreated | HandoverSubmitted | HandoverParticipantAcknowledged
+  HandoverFullyAcknowledged | HandoverOverdue | HandoverMissed
+
+oncall.worklog.events
+  WorkLogCreated | WorkLogClockIn | WorkLogPaused
+  WorkLogResumed | WorkLogClockOut | WorkLogCorrected
+
+oncall.ticket.events
+  TicketLinked | TicketUnlinked | TicketStatusUpdated
+
+oncall.notification.events
+  NotificationQueued | NotificationSent | NotificationFailed | NotificationRetrying
+
+oncall.audit.events   ← dead-letter / replay only; audit-service writes to DB not Kafka
+```
+
+---
+
+### 17.4 Outbox Pattern per Service
+
+Every CUD API call follows this flow — no exceptions:
+
+```
+Angular UI  ──POST/PUT/DELETE──►  api-gateway-service
+                                        │ JWT + domain check
+                                        ▼
+                               target microservice
+                                        │
+                         ┌──────────────▼─────────────────┐
+                         │  Single DB Transaction          │
+                         │  1. Write domain entity row     │
+                         │  2. Write outbox_events row     │
+                         │     (aggregateType, eventType,  │
+                         │      aggregateId, payload JSON) │
+                         └────────────────────────────────┘
+                                        │
+                         Debezium CDC / Polling Publisher
+                         (reads outbox_events WHERE published=false)
+                                        │
+                                        ▼
+                                   Kafka topic
+                                        │
+                         ┌─────────────┼──────────────┐
+                         ▼             ▼               ▼
+               assignment-       notification-     audit-
+               service           service           service
+               (updates          (queues           (writes
+               read model)       reminder)         AuditLog)
+```
+
+---
+
+### 17.5 Synchronous READ vs Asynchronous CUD
+
+| Operation type | Transport | Latency target | Notes |
+|---|---|---|---|
+| `GET` any resource | REST sync → service read model | < 200 ms | Service answers from its own denormalized projection; no cross-service calls |
+| `GET` reports | REST sync → reporting-service | < 2 s | Reporting service maintains pre-aggregated projections updated by Kafka consumers |
+| `POST / PUT / DELETE` | REST → outbox → Kafka → consumers | Eventual (< 1 s typical) | Caller receives `202 Accepted` + `eventId`; UI polls or uses WebSocket for confirmation |
+| Emergency OOO replacement | REST → outbox → Kafka → assignment-service | Eventual, high-priority topic partition | Assignment-service consumer has dedicated thread pool for emergency partition |
+| Notifications | Kafka consumer → delivery channel | < 5 s end-to-end | Notification-service consumes all topics; queues `NotificationEvent`; background job delivers |
+
+---
+
+### 17.6 Service Boundaries and Data Ownership
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                         api-gateway-service                            │
+│   JWT validation │ @agilysys.com enforcement │ Rate limiting │ Routing │
+└───────────────────────────────┬────────────────────────────────────────┘
+                                │ routes to
+     ┌──────────────────────────┼───────────────────────────────────────┐
+     │                          │                                       │
+     ▼                          ▼                                       ▼
+identity-service        team-policy-service                   schedule-service
+Member, Roles           Team, Policy,                         OnCallSession,
+NotifPrefs              SubSession,                           ScheduleDraft
+                        ShiftDef, Holiday
+                                                                       │
+                              ┌────────────────────────────────────────┘
+                              │ SessionPublished event
+                              ▼
+                      assignment-service
+                      OnCallAssignment, OnCallHistory
+                              │
+              ┌───────────────┼─────────────────────┐
+              │               │                     │
+              ▼               ▼                     ▼
+        worklog-service  handover-service   availability-service
+        WorkLog,         Handover,          LeaveRequest,
+        WorkLogEntry     Participant        EmergencyOOO,
+              │                             MidweekReassignment,
+              ▼                             SwapRequest
+        ticket-service                           │
+        DevOpsTicket                             ▼
+        AzureDevOpsConfig               approval-service
+                                        ApprovalRecord,
+                                        ManagerDelegation
+                                                 │
+              ┌──────────────────────────────────┘
+              │  ALL domain events
+     ┌────────┼────────────────────────────┐
+     ▼        ▼                            ▼
+notification  audit-service           reporting-service
+-service      AuditLog                Denormalized
+NotifEvent    (append-only)           read projections
+```
