@@ -127,7 +127,7 @@ public class Member extends BaseEntity {
             joinColumns = @JoinColumn(name = "member_id")
     )
     @Enumerated(EnumType.STRING)
-    @Column(name = "role")
+    @Column(name = "system_role")
     @Builder.Default
     private Set<SystemRole> systemRoles = new HashSet<>();
 

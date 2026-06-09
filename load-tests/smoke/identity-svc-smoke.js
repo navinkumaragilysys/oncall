@@ -75,6 +75,17 @@ export default function () {
   });
 
   // ------------------------------------------------------------------
+  // Gateway JWKS warmup — the reactive Netty JWKS cache is cold on the
+  // first JWT-authenticated request.  Retry until the gateway validates
+  // the token (max ~12 s) before running the real assertion groups.
+  // ------------------------------------------------------------------
+  for (let i = 0; i < 6; i++) {
+    const warmRes = http.get(`${BASE_URL}/api/v1/members/${memberId}`, { headers });
+    if (warmRes.status === 200) break;
+    sleep(2);
+  }
+
+  // ------------------------------------------------------------------
   // 3. GET /members/{id}
   // ------------------------------------------------------------------
   group("member_get_self", () => {
@@ -130,7 +141,7 @@ export default function () {
       `${BASE_URL}/api/v1/members/${memberId}/notification-preferences`,
       JSON.stringify({
         channel: "EMAIL",
-        eventType: "SCHEDULE_CREATED",
+        eventType: "SCHEDULE_PUBLISHED",
         enabled: true,
       }),
       { headers }

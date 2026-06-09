@@ -60,8 +60,10 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 
 # Services we have local builds for
 JAVA_SERVICES="identity-svc gateway"
-# Infra services they depend on (started first, controlled order via --no-deps)
+# Core infra services (DB, messaging, discovery, cache)
 INFRA_SERVICES="postgres kafka consul redis"
+# Observability stack — always running during tests
+OBS_SERVICES="zipkin otel-collector prometheus grafana node-exporter redis-exporter kafka-ui"
 
 # ── test registry ──────────────────────────────────────────────────────────
 declare -A SMOKE_SCRIPTS=(
@@ -145,7 +147,19 @@ deploy() {
   wait_container_healthy "oncall-consul"   60  || die "consul failed to become healthy"
   wait_container_healthy "oncall-redis"    30  || die "redis failed to become healthy"
 
-  # 4. Start application services without pulling unbuilt service images
+  # 4. Start observability stack (no hard deps on app services; start in parallel with app)
+  log "Starting observability stack: ${OBS_SERVICES}..."
+  # shellcheck disable=SC2086
+  docker compose -f "$COMPOSE_FILE" up --no-deps -d $OBS_SERVICES \
+    || die "Failed to start observability services"
+
+  # Wait only for the services that expose healthchecks
+  sep
+  log "Waiting for observability health..."
+  wait_container_healthy "oncall-zipkin"     60 || log "  zipkin: no healthcheck, continuing"
+  wait_container_healthy "oncall-prometheus" 60 || log "  prometheus: timed out, continuing"
+
+  # 5. Start application services without pulling unbuilt service images
   log "Starting app services: ${JAVA_SERVICES}..."
   # shellcheck disable=SC2086
   docker compose -f "$COMPOSE_FILE" up --no-deps -d $JAVA_SERVICES \
@@ -156,7 +170,7 @@ deploy() {
   wait_container_healthy "oncall-identity" 120 || die "identity-svc failed health check"
   wait_container_healthy "oncall-gateway"  90  || die "gateway failed health check"
 
-  # 5. Verify end-to-end routing: gateway → identity-svc JWKS endpoint
+  # 6. Verify end-to-end routing: gateway → identity-svc JWKS endpoint
   log "Verifying end-to-end route (gateway → identity-svc)..."
   wait_http "${BASE_URL}/health/live" 30 \
     || die "Gateway health endpoint not responding"

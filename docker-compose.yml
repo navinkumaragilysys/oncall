@@ -28,7 +28,7 @@
 #   8500  consul           9092  kafka             8081  kafka-ui
 #   8083  kafka-connect    9411  zipkin            4317  otel-collector (gRPC)
 #   4318  otel-collector   9090  prometheus        3100  grafana
-#   5555  pgadmin          8888  config            8090  gateway (public entry point)
+#   8888  config           9121  redis-exporter    8090  gateway (public entry point)
 
 name: oncall
 
@@ -44,7 +44,6 @@ volumes:
   kafka_data:
   prometheus_data:
   grafana_data:
-  pgadmin_data:
 
 services:
   # ─────────────────────────────────────────── INFRASTRUCTURE ─────────────────
@@ -295,22 +294,6 @@ services:
       timeout: 5s
       retries: 5
 
-  postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.15.0
-    container_name: oncall-postgres-exporter
-    restart: unless-stopped
-    environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-oncall}:${POSTGRES_PASSWORD:-oncall_dev_change_me}@postgres:5432/${POSTGRES_DB:-oncall}?sslmode=disable"
-    ports: ["9187:9187"]
-    depends_on:
-      postgres: { condition: service_healthy }
-    networks: [oncall_network]
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:9187/metrics > /dev/null || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis-exporter:
     image: oliver006/redis_exporter:v1.62.0
     container_name: oncall-redis-exporter
@@ -368,22 +351,6 @@ services:
     networks: [oncall_network]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: oncall-pgadmin
-    restart: unless-stopped
-    ports: ["${PGADMIN_PORT:-5555}:80"]
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@oncall.dev}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin_dev_change_me}
-    volumes: ["pgadmin_data:/var/lib/pgadmin"]
-    networks: [oncall_network]
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

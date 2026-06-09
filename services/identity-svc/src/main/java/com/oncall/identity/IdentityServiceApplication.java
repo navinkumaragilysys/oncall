@@ -12,7 +12,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 // Scan domain-shared entities + identity-svc local entities
 @EntityScan(basePackages = {"com.oncall.domain.entity", "com.oncall.identity.outbox", "com.oncall.identity.security"})
-@EnableJpaRepositories(basePackages = {"com.oncall.identity.repository", "com.oncall.identity.outbox"})
+@EnableJpaRepositories(basePackages = {"com.oncall.identity.repository", "com.oncall.identity.outbox", "com.oncall.identity.security"})
 public class IdentityServiceApplication {
 
     public static void main(String[] args) {

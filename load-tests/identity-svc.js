@@ -147,6 +147,18 @@ export default function (data) {
     errorRate.add(!ok);
   });
 
+  // ---- 4. PUT notification preference (toggle enabled) -------------------
+  group("notif_pref_put", () => {
+    const enabled = Math.random() < 0.5;
+    const res = http.put(
+      `${BASE_URL}/api/v1/members/${id}/notification-preferences`,
+      JSON.stringify({ channel: "EMAIL", eventType: "SCHEDULE_PUBLISHED", enabled }),
+      { headers }
+    );
+    const ok = check(res, { "notif_pref_put 2xx": (r) => r.status === 200 || r.status === 202 });
+    errorRate.add(!ok);
+  });
+
   sleep(0.5);
 }
 
