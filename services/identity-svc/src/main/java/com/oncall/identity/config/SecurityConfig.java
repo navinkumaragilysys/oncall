@@ -31,8 +31,10 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public auth endpoints
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // Public auth endpoints — login, refresh, JWKS
+                        // /auth/logout is intentionally excluded and requires a valid JWT
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
+                        .requestMatchers("/api/v1/auth/.well-known/**").permitAll()
                         // Health + actuator
                         .requestMatchers("/health", "/health/**", "/actuator", "/actuator/**").permitAll()
                         // Member creation — Admin only (enforced at service layer via @PreAuthorize)

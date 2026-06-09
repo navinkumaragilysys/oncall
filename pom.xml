@@ -46,6 +46,11 @@
         <postgresql.version>42.7.4</postgresql.version>
         <testcontainers.version>1.20.3</testcontainers.version>
         <bucket4j.version>8.10.1</bucket4j.version>
+
+        <!-- Duplo duplicate-check knobs (override on CLI) -->
+        <!-- mvn verify -Dduplo.minLines=12  or  -Dduplo.skip=true -->
+        <duplo.minLines>8</duplo.minLines>
+        <duplo.skip>false</duplo.skip>
     </properties>
 
     <dependencyManagement>
@@ -136,5 +141,43 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+
+        <!--
+            Duplo duplicate-code check — runs at root level during `mvn verify`.
+            Skipped gracefully when the duplo binary is absent (CI can opt-in by
+            placing the binary at ./tools/duplo or on PATH).
+        -->
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.4.1</version>
+                <inherited>false</inherited>   <!-- root only, not child modules -->
+                <executions>
+                    <execution>
+                        <id>duplo-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>${project.basedir}/scripts/duplo.sh</executable>
+                            <!-- pass min-lines threshold; override with -Dduplo.minLines=N -->
+                            <arguments>
+                                <argument>${duplo.minLines}</argument>
+                            </arguments>
+                            <!-- Never fail the build; duplo output is advisory -->
+                            <successCodes>
+                                <successCode>0</successCode>
+                                <successCode>1</successCode>
+                            </successCodes>
+                            <skip>${duplo.skip}</skip>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
+
+
 </project>

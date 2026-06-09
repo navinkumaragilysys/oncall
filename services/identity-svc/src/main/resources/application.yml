@@ -75,7 +75,7 @@ management:
 # ── JWT settings ──────────────────────────────────────────────────────────────
 oncall:
   jwt:
-    access-token-expiry-minutes: ${ONCALL_JWT_ACCESS_EXPIRY_MINUTES:15}
+    access-token-expiry-minutes: ${ONCALL_JWT_ACCESS_EXPIRY_MINUTES:30}
     refresh-token-expiry-days: ${ONCALL_JWT_REFRESH_EXPIRY_DAYS:7}
   kafka:
     bootstrap: ${ONCALL_KAFKA_BOOTSTRAP:localhost:9092}

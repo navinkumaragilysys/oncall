@@ -17,7 +17,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -29,10 +34,13 @@ public class AuthService {
     private final JwtTokenProvider tokenProvider;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${oncall.jwt.access-token-expiry-minutes:15}")
+    @Value("${oncall.jwt.access-token-expiry-minutes:30}")
     private long accessTokenExpiryMinutes;
 
-    @Transactional(readOnly = true)
+    // ──────────────────────────────────────────────────────────────────────
+    // Login — validates credentials and issues a token pair
+    // ──────────────────────────────────────────────────────────────────────
+    @Transactional
     public AuthResponse login(LoginRequest req) throws Exception {
         Member member = memberRepository.findByEmailIgnoreCase(req.email())
                 .orElseThrow(() -> new DomainException("Invalid credentials"));
@@ -48,20 +56,36 @@ public class AuthService {
             throw new DomainException("Invalid credentials");
         }
 
-        return buildAuthResponse(member);
+        return issueTokenPair(member, credential);
     }
 
-    @Transactional(readOnly = true)
+    // ──────────────────────────────────────────────────────────────────────
+    // Refresh — rotates the refresh token; detects reuse attacks
+    // ──────────────────────────────────────────────────────────────────────
+    @Transactional
     public AuthResponse refresh(RefreshTokenRequest req) throws Exception {
         var jwt = tokenProvider.parseAndValidate(req.refreshToken());
 
-        // Verify it is a refresh token
         String type = jwt.getJWTClaimsSet().getStringClaim("type");
         if (!"refresh".equals(type)) {
             throw new DomainException("Not a refresh token");
         }
 
-        var memberId = tokenProvider.extractMemberId(jwt);
+        UUID memberId = tokenProvider.extractMemberId(jwt);
+        MemberCredential credential = credentialRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new DomainException("Invalid refresh token"));
+
+        // Token reuse detection: if hash doesn't match, the token was already
+        // rotated or revoked — clear the stored token and force re-login.
+        String incomingHash = sha256(req.refreshToken());
+        if (!incomingHash.equals(credential.getRefreshTokenHash())) {
+            credential.setRefreshTokenHash(null);
+            credential.setRefreshTokenExpiresAt(null);
+            credentialRepository.save(credential);
+            log.warn("Refresh token reuse detected for memberId={}. Invalidating all sessions.", memberId);
+            throw new DomainException("Refresh token already used or revoked. Please log in again.");
+        }
+
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new DomainException("Member not found"));
 
@@ -69,13 +93,41 @@ public class AuthService {
             throw new DomainException("Account is deactivated");
         }
 
-        return buildAuthResponse(member);
+        return issueTokenPair(member, credential);
     }
 
-    private AuthResponse buildAuthResponse(Member member) throws Exception {
+    // ──────────────────────────────────────────────────────────────────────
+    // Logout — invalidates the stored refresh token hash
+    // ──────────────────────────────────────────────────────────────────────
+    @Transactional
+    public void logout(UUID memberId) {
+        credentialRepository.findByMemberId(memberId).ifPresent(cred -> {
+            cred.setRefreshTokenHash(null);
+            cred.setRefreshTokenExpiresAt(null);
+            credentialRepository.save(cred);
+            log.info("Refresh token invalidated for memberId={}", memberId);
+        });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Internal helpers
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Issues a new access + refresh token pair, rotates the stored hash,
+     * and returns the full AuthResponse.
+     */
+    private AuthResponse issueTokenPair(Member member, MemberCredential credential) throws Exception {
         List<String> roles = member.getSystemRoles().stream().map(Enum::name).toList();
-        String accessToken = tokenProvider.issueAccessToken(member.getId(), member.getEmail(), roles);
+        String accessToken  = tokenProvider.issueAccessToken(member.getId(), member.getEmail(), roles);
         String refreshToken = tokenProvider.issueRefreshToken(member.getId());
+
+        // Rotate: store the SHA-256 hash of the new refresh token
+        var refreshJwt = tokenProvider.parseAndValidate(refreshToken);
+        Instant refreshExpiry = refreshJwt.getJWTClaimsSet().getExpirationTime().toInstant();
+        credential.setRefreshTokenHash(sha256(refreshToken));
+        credential.setRefreshTokenExpiresAt(refreshExpiry);
+        credentialRepository.save(credential);
 
         return new AuthResponse(
                 accessToken,
@@ -85,5 +137,18 @@ public class AuthService {
                 member.getEmail(),
                 roles
         );
+    }
+
+    /** SHA-256 hex digest — used to store refresh tokens without exposing the raw value. */
+    static String sha256(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(64);
+            for (byte b : hash) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
     }
 }

@@ -14,13 +14,13 @@ spring:
       connect-timeout: 2s
       timeout: 2s
 
-  # ── JWT resource server — decodes tokens issued by identity-svc ───────────
+  # ── JWT resource server — decodes tokens issued by identity-svc ——————————
   security:
     oauth2:
       resourceserver:
         jwt:
           # identity-svc exposes its public keys here; override via env var in docker-compose
-          jwk-set-uri: ${oncall.jwt.jwks-uri:http://identity-svc:8080/api/v1/auth/.well-known/jwks.json}
+          jwk-set-uri: ${ONCALL_JWT_JWKS_URI:http://identity-svc:8080/api/v1/auth/.well-known/jwks.json}
 
   # ── Spring Cloud ───────────────────────────────────────────────────────────
   cloud:
@@ -34,6 +34,19 @@ spring:
         health-check-interval: 15s
 
     gateway:
+      # Global CORS — allows the Angular UI (and API tools) to call the gateway from any
+      # localhost port or any *.agilysys.com origin.
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "http://localhost:[*]"
+              - "https://*.agilysys.com"
+            allowedMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+            allowedHeaders: ["*"]
+            allowCredentials: true
+            maxAge: 3600
+
       # Global filters applied to every route
       default-filters:
         - name: RequestRateLimiter

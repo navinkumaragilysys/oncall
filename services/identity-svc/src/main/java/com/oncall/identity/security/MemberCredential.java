@@ -37,4 +37,12 @@ public class MemberCredential {
 
     @Column(name = "password_changed_at", nullable = false)
     private Instant passwordChangedAt;
+
+    /** SHA-256 hex digest of the current refresh token (null = no active refresh token). */
+    @Column(name = "refresh_token_hash", length = 64)
+    private String refreshTokenHash;
+
+    /** Expiry copied from the refresh token's {@code exp} claim — allows DB-side TTL queries. */
+    @Column(name = "refresh_token_expires_at")
+    private Instant refreshTokenExpiresAt;
 }

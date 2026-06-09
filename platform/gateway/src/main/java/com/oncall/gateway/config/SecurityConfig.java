@@ -2,6 +2,7 @@ package com.oncall.gateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -28,11 +29,17 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                // Delegate CORS to Spring Cloud Gateway globalcors (configured in application.yml)
+                .cors(Customizer.withDefaults())
                 .authorizeExchange(exchanges -> exchanges
                         // Infra / health endpoints — always open
                         .pathMatchers("/health", "/health/**", "/actuator", "/actuator/**").permitAll()
+                        // CORS pre-flight must pass before JWT validation
+                        .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Auth endpoints — identity-svc handles credential validation
-                        .pathMatchers("/api/v1/auth/**").permitAll()
+                        // /auth/logout is intentionally NOT listed here; it goes through JWT auth
+                        .pathMatchers("/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
+                        .pathMatchers("/api/v1/auth/.well-known/**").permitAll()
                         // All other routes require a valid JWT
                         .anyExchange().authenticated()
                 )
