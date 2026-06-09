@@ -1,0 +1,213 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: oncall-gateway
+
+  # ── Redis (rate limiting) ──────────────────────────────────────────────────
+  data:
+    redis:
+      host: ${oncall.redis.host:localhost}
+      port: 6379
+      password: ${oncall.redis.password:}
+      connect-timeout: 2s
+      timeout: 2s
+
+  # ── JWT resource server — decodes tokens issued by identity-svc ───────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # identity-svc exposes its public keys here; override via env var in docker-compose
+          jwk-set-uri: ${oncall.jwt.jwks-uri:http://identity-svc:8080/api/v1/auth/.well-known/jwks.json}
+
+  # ── Spring Cloud ───────────────────────────────────────────────────────────
+  cloud:
+    consul:
+      host: ${oncall.consul.host:localhost}
+      port: ${oncall.consul.port:8500}
+      discovery:
+        service-name: ${spring.application.name}
+        prefer-ip-address: true
+        health-check-path: /health
+        health-check-interval: 15s
+
+    gateway:
+      # Global filters applied to every route
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            # 200 req/s per user (burst up to 400); backed by Redis
+            redis-rate-limiter.replenishRate: 200
+            redis-rate-limiter.burstCapacity: 400
+            redis-rate-limiter.requestedTokens: 1
+            # Uses memberKeyResolver bean (falls back to IP for public paths)
+            key-resolver: "#{@memberKeyResolver}"
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+
+      # ── Routes (lb:// URIs resolved via Consul + Spring Cloud LoadBalancer) ─
+      routes:
+
+        # ── identity-svc: Member CRUD, auth/login, roles, notification preferences ──
+        - id: identity-route
+          uri: lb://identity-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/members/**
+                  - /api/v1/auth/**
+                  - /api/v1/notification-preferences/**
+
+        # ── team-policy-svc: Teams, rotation policies, sub-sessions, shifts, holidays ──
+        - id: team-policy-route
+          uri: lb://team-policy-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/teams/**
+                  - /api/v1/policies/**
+                  - /api/v1/sub-sessions/**
+                  - /api/v1/shifts/**
+                  - /api/v1/holidays/**
+
+        # ── schedule-svc: Schedule generation, OnCallSession lifecycle ──
+        - id: schedule-route
+          uri: lb://schedule-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/sessions/**
+                  - /api/v1/schedules/**
+
+        # ── assignment-svc: OnCallAssignment, OnCallHistory, fairness ──
+        - id: assignment-route
+          uri: lb://assignment-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/assignments/**
+                  - /api/v1/history/**
+
+        # ── worklog-svc: OnCallWorkLog, WorkLogEntry (clock-in/pause/resume/clock-out) ──
+        - id: worklog-route
+          uri: lb://worklog-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/worklogs/**
+
+        # ── ticket-svc: DevOpsTicketRecord, AzureDevOpsConfig ──
+        - id: ticket-route
+          uri: lb://ticket-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/tickets/**
+                  - /api/v1/ado-configs/**
+
+        # ── handover-svc: Handover, HandoverParticipant ──
+        - id: handover-route
+          uri: lb://handover-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/handovers/**
+
+        # ── availability-svc: Leave, EmergencyOOO, Midweek reassignment, Swaps ──
+        - id: availability-route
+          uri: lb://availability-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/leave/**
+                  - /api/v1/emergency-ooo/**
+                  - /api/v1/reassignments/**
+                  - /api/v1/swaps/**
+
+        # ── approval-svc: ApprovalRecord, ManagerDelegation ──
+        - id: approval-route
+          uri: lb://approval-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/approvals/**
+                  - /api/v1/delegations/**
+
+        # ── notification-svc: NotificationEvent read-model (preferences managed by identity-svc) ──
+        - id: notification-route
+          uri: lb://notification-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/notifications/**
+
+        # ── audit-svc: AuditLog (read-only via GET) ──
+        - id: audit-route
+          uri: lb://audit-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/audit/**
+
+        # ── reporting-svc: All report types (sync GET only) ──
+        - id: reporting-route
+          uri: lb://reporting-svc
+          predicates:
+            - name: Path
+              args:
+                patterns:
+                  - /api/v1/reports/**
+
+# ── Actuator ──────────────────────────────────────────────────────────────────
+management:
+  server:
+    port: 8080
+  endpoints:
+    web:
+      # Serve actuator endpoints at root so /health, /health/live etc. match docker-compose healthchecks
+      base-path: /
+      exposure:
+        include: health, info, metrics, prometheus, gateway
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true   # enables /health/live and /health/ready
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    org.springframework.security: INFO
+    com.oncall.gateway: DEBUG
+
+# ── Custom gateway properties ─────────────────────────────────────────────────
+oncall:
+  gateway:
+    allowed-email-domain: "@agilysys.com"
+  jwt:
+    jwks-uri: ${ONCALL_JWT_JWKS_URI:http://identity-svc:8080/api/v1/auth/.well-known/jwks.json}
+  redis:
+    host: ${ONCALL_REDIS_HOST:localhost}
+    password: ${ONCALL_REDIS_PASSWORD:}
+  consul:
+    host: ${ONCALL_CONSUL_HOST:localhost}
+    port: ${ONCALL_CONSUL_PORT:8500}

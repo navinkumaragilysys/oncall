@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.oncall</groupId>
+    <artifactId>oncall-platform</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>On-Call Rotation Platform</name>
+
+    <!-- Modules are added here as each service is built -->
+    <modules>
+        <module>domain-shared</module>
+        <module>platform/gateway</module>
+        <!-- <module>platform/config</module> -->
+        <module>services/identity-svc</module>
+        <!-- <module>services/team-policy-svc</module> -->
+        <!-- <module>services/schedule-svc</module> -->
+        <!-- <module>services/assignment-svc</module> -->
+        <!-- <module>services/worklog-svc</module> -->
+        <!-- <module>services/ticket-svc</module> -->
+        <!-- <module>services/handover-svc</module> -->
+        <!-- <module>services/availability-svc</module> -->
+        <!-- <module>services/approval-svc</module> -->
+        <!-- <module>services/notification-svc</module> -->
+        <!-- <module>services/audit-svc</module> -->
+        <!-- <module>services/reporting-svc</module> -->
+    </modules>
+
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Core framework versions -->
+        <spring-boot.version>3.3.6</spring-boot.version>
+        <spring-cloud.version>2023.0.3</spring-cloud.version>
+
+        <!-- Library versions -->
+        <lombok.version>1.18.34</lombok.version>
+        <mapstruct.version>1.6.2</mapstruct.version>
+        <flyway.version>10.20.1</flyway.version>
+        <postgresql.version>42.7.4</postgresql.version>
+        <testcontainers.version>1.20.3</testcontainers.version>
+        <bucket4j.version>8.10.1</bucket4j.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot BOM -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Spring Cloud BOM -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Internal shared module -->
+            <dependency>
+                <groupId>com.oncall</groupId>
+                <artifactId>domain-shared</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Compiler: enables Lombok + MapStruct annotation processors for all modules -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                    <configuration>
+                        <source>17</source>
+                        <target>17</target>
+                        <!-- Required so Jackson can deserialize records via canonical constructor -->
+                        <compilerArgs>
+                            <arg>-parameters</arg>
+                        </compilerArgs>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.mapstruct</groupId>
+                                <artifactId>mapstruct-processor</artifactId>
+                                <version>${mapstruct.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+
+                <!-- Spring Boot repackage — only activated in service modules that include this plugin -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                    <configuration>
+                        <excludes>
+                            <exclude>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </exclude>
+                        </excludes>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.5.1</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

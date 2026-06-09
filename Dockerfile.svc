@@ -1,0 +1,47 @@
+# Generic multi-stage Dockerfile for all on-call platform Spring Boot services.
+#
+# Build args (required):
+#   SVC_PATH  — relative path to the service module (e.g. platform/gateway)
+#   SVC_JAR   — base name of the fat JAR without the .jar extension (e.g. gateway)
+#
+# Usage (via docker-compose build args):
+#   build:
+#     context: .
+#     dockerfile: Dockerfile.svc
+#     args:
+#       SVC_PATH: platform/gateway
+#       SVC_JAR: gateway
+#
+# Build the JAR first:
+#   mvn clean install -DskipTests
+
+FROM eclipse-temurin:21-jre-alpine AS runtime
+
+# Non-root user for container security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+ARG SVC_PATH
+ARG SVC_JAR
+
+WORKDIR /app
+
+# Copy the fat JAR produced by spring-boot-maven-plugin:repackage
+COPY ${SVC_PATH}/target/${SVC_JAR}.jar app.jar
+
+# Drop privileges
+USER appuser
+
+EXPOSE 8080
+
+# JVM flags:
+#   UseContainerSupport     — respects cgroup memory/CPU limits (default in JDK 11+, explicit for clarity)
+#   MaxRAMPercentage=75.0   — cap heap at 75% of container memory; leave room for off-heap, metaspace, etc.
+#   TieredStopAtLevel=1     — faster startup (interpreted only); remove for throughput-sensitive services
+#   java.security.egd       — faster SecureRandom in containers (no /dev/random blocking)
+#
+# JAVA_TOOL_OPTIONS in docker-compose overrides these at runtime for service-specific tuning.
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-jar", "app.jar"]

@@ -1,0 +1,45 @@
+package com.oncall.gateway.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.web.server.SecurityWebFilterChain;
+
+@Configuration
+@EnableWebFluxSecurity
+public class SecurityConfig {
+
+    /**
+     * Reactive security filter chain.
+     *
+     * <ul>
+     *   <li>Public paths: /health/**, /actuator/**, /api/v1/auth/**
+     *       (login, token refresh, guest sign-in — identity-svc enforces the @agilysys.com rule there)</li>
+     *   <li>All other paths require a valid JWT (RS256 validated against JWKS from identity-svc).</li>
+     *   <li>After JWT validation, {@link com.oncall.gateway.filter.EmailDomainFilter} enforces
+     *       the @agilysys.com domain on the email/sub claim.</li>
+     * </ul>
+     */
+    @Bean
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        return http
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
+                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                .authorizeExchange(exchanges -> exchanges
+                        // Infra / health endpoints — always open
+                        .pathMatchers("/health", "/health/**", "/actuator", "/actuator/**").permitAll()
+                        // Auth endpoints — identity-svc handles credential validation
+                        .pathMatchers("/api/v1/auth/**").permitAll()
+                        // All other routes require a valid JWT
+                        .anyExchange().authenticated()
+                )
+                // JWT resource server — decoder configured via application.yml (jwk-set-uri)
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(Customizer.withDefaults())
+                )
+                .build();
+    }
+}
