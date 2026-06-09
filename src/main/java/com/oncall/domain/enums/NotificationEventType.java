@@ -1,0 +1,53 @@
+package com.oncall.domain.enums;
+
+public enum NotificationEventType {
+    // Assignment notifications
+    ASSIGNED_PRIMARY,
+    ASSIGNED_SECONDARY,
+
+    // Shift reminders
+    REMINDER_T48H,
+    REMINDER_T24H,
+    SHIFT_STARTED,
+
+    // Handover notifications
+    HANDOVER_DUE_48H,
+    HANDOVER_NOT_ACKNOWLEDGED_2H,
+    HANDOVER_COPY_TO_SECONDARY,
+    SUB_SESSION_BOUNDARY_HANDOVER_DUE,
+
+    // Leave notifications
+    LEAVE_REQUEST_PENDING_APPROVAL,
+    LEAVE_REQUEST_APPROVED,
+    LEAVE_REQUEST_REJECTED,
+
+    // Mid-week reassignment notifications
+    MIDWEEK_REASSIGNMENT_REQUESTED,
+    MIDWEEK_REASSIGNMENT_APPROVED,
+    MIDWEEK_REASSIGNMENT_REJECTED,
+    MIDWEEK_REASSIGNMENT_SLA_EXPIRED,
+    SECONDARY_NOTIFIED_OF_PRIMARY_REASSIGNMENT,
+
+    // Emergency OOO notifications
+    EMERGENCY_OOO_DECLARED,
+    EMERGENCY_REPLACEMENT_SELECTED,
+    SECONDARY_STEPPED_UP_TO_PRIMARY,
+
+    // Swap notifications
+    SWAP_REQUEST_PENDING_APPROVAL,
+    SWAP_REQUEST_APPROVED,
+    SWAP_REQUEST_REJECTED,
+
+    // Approval workflow notifications
+    APPROVAL_SLA_EXPIRED,
+    APPROVAL_DELEGATED,
+    APPROVAL_ESCALATED,
+
+    // Coverage and schedule notifications
+    UNCOVERED_SHIFT_DETECTED,
+    SCHEDULE_PUBLISHED,
+    CONSTRAINT_RELAXATION_WARNING,
+
+    // Holiday notifications
+    HOLIDAY_ON_ASSIGNED_SHIFT
+}
