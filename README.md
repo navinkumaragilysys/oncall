@@ -1,6 +1,6 @@
 # On-Call Rotation Platform
 
-A multi-team on-call scheduling platform built with **Java Spring Boot** (backend) and **Angular** (frontend).  
+A multi-team on-call scheduling platform built with **Java Spring Boot** (backend) and **Angular** (frontend).
 Only `@agilysys.com` email addresses are permitted across the entire system.
 
 ---
@@ -879,7 +879,7 @@ Microsoft.VSTS.Scheduling.DueDate      → due_date
 
 ### Email Domain Policy
 
-All member accounts — including guest sign-ins — **must** use an `@agilysys.com` email address.  
+All member accounts — including guest sign-ins — **must** use an `@agilysys.com` email address.
 Enforced at three layers:
 
 1. **Bean Validation** — `@Pattern(regexp = "^[a-zA-Z0-9._%+\\-]+@agilysys\\.com$")` on `Member.email`
