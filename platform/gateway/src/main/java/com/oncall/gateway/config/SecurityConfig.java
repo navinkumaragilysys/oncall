@@ -7,6 +7,8 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
+import org.springframework.security.web.server.savedrequest.NoOpServerRequestCache;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -29,11 +31,17 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                // Stateless — never create or consult HTTP sessions.
+                // Without this, ExceptionTranslationWebFilter tries to save the request for
+                // post-login redirect AFTER the proxy has already committed the response,
+                // causing UnsupportedOperationException + connection close (k6 sees EOF).
+                .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
+                .requestCache(cache -> cache.requestCache(NoOpServerRequestCache.getInstance()))
                 // Delegate CORS to Spring Cloud Gateway globalcors (configured in application.yml)
                 .cors(Customizer.withDefaults())
                 .authorizeExchange(exchanges -> exchanges
-                        // Infra / health endpoints — always open
-                        .pathMatchers("/health", "/health/**", "/actuator", "/actuator/**").permitAll()
+                        // Infra / health endpoints — always open (base-path: / so prometheus is at /prometheus)
+                        .pathMatchers("/health", "/health/**", "/actuator", "/actuator/**", "/prometheus", "/metrics", "/info").permitAll()
                         // CORS pre-flight must pass before JWT validation
                         .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Auth endpoints — identity-svc handles credential validation

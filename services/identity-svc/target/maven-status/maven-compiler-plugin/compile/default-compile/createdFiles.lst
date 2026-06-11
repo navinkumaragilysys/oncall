@@ -15,6 +15,7 @@ com/oncall/identity/service/MemberService.class
 com/oncall/identity/security/JwtAuthenticationFilter.class
 com/oncall/identity/config/KafkaConfig.class
 com/oncall/identity/outbox/OutboxPublisher.class
+com/oncall/identity/config/DevDataSeeder.class
 com/oncall/identity/dto/request/LoginRequest.class
 com/oncall/identity/dto/request/RefreshTokenRequest.class
 com/oncall/identity/security/MemberCredentialRepository.class

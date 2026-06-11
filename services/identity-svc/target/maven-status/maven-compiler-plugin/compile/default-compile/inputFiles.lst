@@ -1,4 +1,5 @@
 /home/nkumarx/oncall/services/identity-svc/src/main/java/com/oncall/identity/IdentityServiceApplication.java
+/home/nkumarx/oncall/services/identity-svc/src/main/java/com/oncall/identity/config/DevDataSeeder.java
 /home/nkumarx/oncall/services/identity-svc/src/main/java/com/oncall/identity/config/KafkaConfig.java
 /home/nkumarx/oncall/services/identity-svc/src/main/java/com/oncall/identity/config/SecurityConfig.java
 /home/nkumarx/oncall/services/identity-svc/src/main/java/com/oncall/identity/controller/AuthController.java

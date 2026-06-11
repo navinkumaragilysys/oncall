@@ -35,8 +35,8 @@ public class SecurityConfig {
                         // /auth/logout is intentionally excluded and requires a valid JWT
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
                         .requestMatchers("/api/v1/auth/.well-known/**").permitAll()
-                        // Health + actuator
-                        .requestMatchers("/health", "/health/**", "/actuator", "/actuator/**").permitAll()
+                        // Health + actuator (base-path: / so prometheus is at /prometheus)
+                        .requestMatchers("/health", "/health/**", "/actuator", "/actuator/**", "/prometheus", "/metrics", "/info").permitAll()
                         // Member creation — Admin only (enforced at service layer via @PreAuthorize)
                         .requestMatchers(HttpMethod.POST, "/api/v1/members").hasRole("ADMIN")
                         // All other endpoints require a valid JWT

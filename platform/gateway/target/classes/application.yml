@@ -49,14 +49,11 @@ spring:
 
       # Global filters applied to every route
       default-filters:
-        - name: RequestRateLimiter
-          args:
-            # 200 req/s per user (burst up to 400); backed by Redis
-            redis-rate-limiter.replenishRate: 200
-            redis-rate-limiter.burstCapacity: 400
-            redis-rate-limiter.requestedTokens: 1
-            # Uses memberKeyResolver bean (falls back to IP for public paths)
-            key-resolver: "#{@memberKeyResolver}"
+        # NOTE: RequestRateLimiter is intentionally applied per-route (not as a default-filter).
+        # When used as default-filter, Spring Cloud Gateway's rate limiter writes X-RateLimit-*
+        # headers via ReadOnlyHttpHeaders.add() AFTER the upstream response is already committed
+        # (the Redis call is async and resolves after Netty flushes the response head), causing
+        # UnsupportedOperationException + connection close that clients see as EOF.
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
 
       # ── Routes (lb:// URIs resolved via Consul + Spring Cloud LoadBalancer) ─
@@ -189,7 +186,7 @@ management:
     port: 8080
   endpoints:
     web:
-      # Serve actuator endpoints at root so /health, /health/live etc. match docker-compose healthchecks
+      # Serve actuator endpoints at root so /health, /health/liveness etc. match docker-compose healthchecks
       base-path: /
       exposure:
         include: health, info, metrics, prometheus, gateway
@@ -197,13 +194,18 @@ management:
     health:
       show-details: when_authorized
       probes:
-        enabled: true   # enables /health/live and /health/ready
+        enabled: true   # enables /health/liveness and /health/readiness
   metrics:
     export:
       prometheus:
         enabled: true
     tags:
       application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s,2s
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging:

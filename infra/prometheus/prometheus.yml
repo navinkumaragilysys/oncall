@@ -25,12 +25,12 @@ scrape_configs:
       - targets: ["redis-exporter:9121"]
 
   - job_name: identity-svc
-    metrics_path: /actuator/prometheus
+    metrics_path: /prometheus
     static_configs:
       - targets: ["identity-svc:8080"]
 
   - job_name: gateway
-    metrics_path: /actuator/prometheus
+    metrics_path: /prometheus
     static_configs:
       - targets: ["gateway:8080"]
 

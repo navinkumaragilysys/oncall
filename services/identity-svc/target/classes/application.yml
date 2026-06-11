@@ -50,7 +50,7 @@ spring:
       discovery:
         service-name: ${spring.application.name}
         prefer-ip-address: true
-        health-check-path: /health/live
+        health-check-path: /health/liveness
         health-check-interval: 15s
 
 # ── Actuator ──────────────────────────────────────────────────────────────────
@@ -71,6 +71,11 @@ management:
         enabled: true
     tags:
       application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s,2s
 
 # ── JWT settings ──────────────────────────────────────────────────────────────
 oncall:

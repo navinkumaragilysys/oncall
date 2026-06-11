@@ -12,7 +12,7 @@
  */
 
 import http from "k6/http";
-import { check, group, fail } from "k6";
+import { check, group, fail, sleep } from "k6";
 
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8090";
 const LOGIN_EMAIL = __ENV.LOGIN_EMAIL || "seed.admin@agilysys.com";
@@ -54,10 +54,10 @@ export default function () {
     memberId = body.memberId;
   });
 
-  const headers = {
-    "Content-Type": "application/json",
-    Authorization:  `Bearer ${token}`,
-  };
+  // GET requests must NOT include Content-Type — Reactor Netty tries to parse
+  // an expected request body when Content-Type is set, causing mid-response EOF.
+  const authHeader  = { Authorization: `Bearer ${token}` };
+  const writeHeaders = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
 
   // ------------------------------------------------------------------
   // 2. Token refresh
@@ -77,19 +77,21 @@ export default function () {
   // ------------------------------------------------------------------
   // Gateway JWKS warmup — the reactive Netty JWKS cache is cold on the
   // first JWT-authenticated request.  Retry until the gateway validates
-  // the token (max ~12 s) before running the real assertion groups.
+  // the token (max ~60 s on a fresh deploy) before running assertions.
   // ------------------------------------------------------------------
-  for (let i = 0; i < 6; i++) {
-    const warmRes = http.get(`${BASE_URL}/api/v1/members/${memberId}`, { headers });
-    if (warmRes.status === 200) break;
-    sleep(2);
+  let warmed = false;
+  for (let i = 0; i < 20; i++) {
+    const warmRes = http.get(`${BASE_URL}/api/v1/members/${memberId}`, { headers: authHeader });
+    if (warmRes.status === 200) { warmed = true; break; }
+    sleep(3);
   }
+  if (!warmed) fail(`Gateway JWKS warmup failed after 60 s — first protected request never returned 200`);
 
   // ------------------------------------------------------------------
   // 3. GET /members/{id}
   // ------------------------------------------------------------------
   group("member_get_self", () => {
-    const res = http.get(`${BASE_URL}/api/v1/members/${memberId}`, { headers });
+    const res = http.get(`${BASE_URL}/api/v1/members/${memberId}`, { headers: authHeader });
     check(res, {
       "member_get: status 200": (r) => r.status === 200,
       "member_get: has email":  (r) => { try { return !!JSON.parse(r.body).email; } catch { return false; } },
@@ -100,7 +102,7 @@ export default function () {
   // 4. GET /members  (list, admin only)
   // ------------------------------------------------------------------
   group("member_list", () => {
-    const res = http.get(`${BASE_URL}/api/v1/members`, { headers });
+    const res = http.get(`${BASE_URL}/api/v1/members`, { headers: authHeader });
     check(res, {
       "member_list: status 200 or 403": (r) => r.status === 200 || r.status === 403,
     });
@@ -113,7 +115,7 @@ export default function () {
     const res = http.patch(
       `${BASE_URL}/api/v1/members/${memberId}`,
       JSON.stringify({ timezone: "UTC" }),
-      { headers }
+      { headers: writeHeaders }
     );
     check(res, {
       "member_patch: status 202": (r) => r.status === 202,
@@ -126,7 +128,7 @@ export default function () {
   group("notif_pref_get", () => {
     const res = http.get(
       `${BASE_URL}/api/v1/members/${memberId}/notification-preferences`,
-      { headers }
+      { headers: authHeader }
     );
     check(res, {
       "notif_pref_get: status 200": (r) => r.status === 200,
@@ -144,7 +146,7 @@ export default function () {
         eventType: "SCHEDULE_PUBLISHED",
         enabled: true,
       }),
-      { headers }
+      { headers: writeHeaders }
     );
     check(res, {
       "notif_pref_put: status 200 or 202": (r) => r.status === 200 || r.status === 202,

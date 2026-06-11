@@ -16,7 +16,7 @@
         <module>platform/gateway</module>
         <!-- <module>platform/config</module> -->
         <module>services/identity-svc</module>
-        <!-- <module>services/team-policy-svc</module> -->
+        <module>services/team-policy-svc</module>
         <!-- <module>services/schedule-svc</module> -->
         <!-- <module>services/assignment-svc</module> -->
         <!-- <module>services/worklog-svc</module> -->

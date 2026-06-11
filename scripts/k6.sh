@@ -230,6 +230,35 @@ require_bin docker "Install Docker from https://docs.docker.com/get-docker/"
 
 [[ "$SKIP_DEPLOY" == "false" ]] && deploy
 
+# ── Always pre-warm the gateway JWKS cache before running tests ──────────────
+# NimbusReactiveJwtDecoder fetches JWKS lazily on the first JWT-validated
+# request.  When the stack is freshly started (or restarted) the JWKS cache
+# is cold.  Pre-warming here ensures k6 never hits the cold-cache race
+# regardless of whether --skip-deploy was used.
+sep
+log "Pre-warming gateway JWKS cache..."
+WARM_LOGIN=$(curl -sf -X POST "${BASE_URL}/api/v1/auth/login" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"seed.admin@agilysys.com","password":"Ch@ngeMe1!"}' 2>/dev/null) \
+  || die "Pre-warm login failed — is the stack running?"
+WARM_TOKEN=$(echo "$WARM_LOGIN" | python3 -c "import json,sys; print(json.load(sys.stdin)['accessToken'])" 2>/dev/null) \
+  || die "Pre-warm: could not parse accessToken"
+WARM_MEMBER=$(echo "$WARM_LOGIN" | python3 -c "import json,sys; print(json.load(sys.stdin)['memberId'])" 2>/dev/null)
+warmed=false
+for i in $(seq 1 20); do
+  warm_status=$(curl -s -o /dev/null -w "%{http_code}" \
+    -H "Authorization: Bearer ${WARM_TOKEN}" \
+    "${BASE_URL}/api/v1/members/${WARM_MEMBER}" 2>/dev/null)
+  if [[ "$warm_status" == "200" ]]; then
+    warmed=true
+    log "  JWKS cache warm (attempt ${i})"
+    break
+  fi
+  sleep 3
+done
+[[ "$warmed" == "true" ]] || die "Gateway JWKS cache did not warm after 60 s — check gateway logs"
+sep
+
 # Register cleanup even if tests fail
 trap cleanup EXIT
 
