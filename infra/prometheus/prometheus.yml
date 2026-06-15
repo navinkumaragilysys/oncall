@@ -24,16 +24,39 @@ scrape_configs:
     static_configs:
       - targets: ["redis-exporter:9121"]
 
-  - job_name: identity-svc
-    metrics_path: /prometheus
-    static_configs:
-      - targets: ["identity-svc:8080"]
-
-  - job_name: gateway
-    metrics_path: /prometheus
-    static_configs:
-      - targets: ["gateway:8080"]
-
   - job_name: otel-collector
     static_configs:
       - targets: ["otel-collector:8888"]
+
+  # Consul service discovery for all microservices
+  - job_name: consul-services
+    consul_sd_configs:
+      - server: consul:8500
+        datacenter: dc1
+    relabel_configs:
+      # Keep only services tagged 'metrics'
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      - source_labels: [__meta_consul_node]
+        target_label: node
+      - source_labels: [__meta_consul_service]
+        regex: ".*-svc|gateway|config"
+        action: keep
+      # Keep gateway metrics scrape stable via docker DNS even when Consul advertises localhost:8090.
+      - source_labels: [__meta_consul_service]
+        regex: "oncall-gateway"
+        target_label: __address__
+        replacement: "gateway:8080"
+      # Set metrics path based on service
+      - source_labels: [__meta_consul_service]
+        regex: ".*-svc|gateway|config"
+        target_label: __metrics_path__
+        replacement: "/prometheus"
+      # Build target from consul metadata
+      - source_labels: [__address__]
+        regex: "([^:]+)(?::\\d+)?"
+        replacement: "${1}:8080"
+        target_label: __address__
+    # Increase timeout for slow services on first scrape
+    scrape_interval: 30s
+    scrape_timeout: 10s

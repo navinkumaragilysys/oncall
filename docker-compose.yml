@@ -28,7 +28,13 @@
 #   8500  consul           9092  kafka             8081  kafka-ui
 #   8083  kafka-connect    9411  zipkin            4317  otel-collector (gRPC)
 #   4318  otel-collector   9090  prometheus        3100  grafana
-#   8888  config           9121  redis-exporter    8090  gateway (public entry point)
+#   8888  config           9121  redis-exporter    3101  loki
+#   BUSINESS SERVICES (Swagger UI browsable on each port):
+#   8091  identity-svc     8092  team-policy-svc   8093  schedule-svc
+#   8094  assignment-svc   8095  worklog-svc       8096  ticket-svc
+#   8097  handover-svc     8098  availability-svc  8099  approval-svc
+#   8100  notification-svc 8101  audit-svc         8102  reporting-svc
+#   8090  gateway (public entry point)
 
 name: oncall
 
@@ -44,6 +50,7 @@ volumes:
   kafka_data:
   prometheus_data:
   grafana_data:
+  loki_data:
 
 services:
   # ─────────────────────────────────────────── INFRASTRUCTURE ─────────────────
@@ -355,6 +362,38 @@ services:
       timeout: 5s
       retries: 5
 
+  # Loki — log aggregation backend (Grafana datasource)
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: oncall-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-config.yaml
+    ports: ["3101:3100"]
+    volumes:
+      - ./infra/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_data:/loki
+    networks: [oncall_network]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # Promtail — ships Docker container logs to Loki
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: oncall-promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-config.yaml
+    volumes:
+      - ./infra/promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      loki: { condition: service_healthy }
+    networks: [oncall_network]
+
   # ─────────────────────────────────────── OUTBOX / CDC RELAY ─────────────────
 
   # Debezium Kafka Connect — reads outbox_events tables via PostgreSQL logical replication
@@ -410,13 +449,14 @@ services:
     environment:
       server.port: "8080"
       JAVA_TOOL_OPTIONS: "${CONFIG_JAVA_OPTS:--Xms64m -Xmx256m -XX:+UseG1GC}"
+      oncall.consul.host: consul
+      oncall.consul.port: "8500"
     deploy:
       resources:
         limits:
           memory: "${CONFIG_MEM_LIMIT:-384m}"
         reservations:
           memory: 64m
-    ports: ["8888:8080"]
     networks: [oncall_network]
     depends_on:
       consul: { condition: service_healthy }

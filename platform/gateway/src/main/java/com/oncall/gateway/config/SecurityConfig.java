@@ -40,6 +40,8 @@ public class SecurityConfig {
                 // Delegate CORS to Spring Cloud Gateway globalcors (configured in application.yml)
                 .cors(Customizer.withDefaults())
                 .authorizeExchange(exchanges -> exchanges
+                        // Swagger / OpenAPI endpoints — public documentation
+                        .pathMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**", "/webjars/**").permitAll()
                         // Infra / health endpoints — always open (base-path: / so prometheus is at /prometheus)
                         .pathMatchers("/health", "/health/**", "/actuator", "/actuator/**", "/prometheus", "/metrics", "/info").permitAll()
                         // CORS pre-flight must pass before JWT validation

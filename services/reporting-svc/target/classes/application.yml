@@ -1,0 +1,103 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: reporting-svc
+
+  datasource:
+    url: ${oncall.db.url:jdbc:postgresql://localhost:5432/oncall_reporting}
+    username: ${oncall.db.user:oncall}
+    password: ${oncall.db.password:oncall_dev_change_me}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 30000
+      connection-timeout: 5000
+      pool-name: reporting-svc-pool
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        default_batch_fetch_size: 50
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  kafka:
+    bootstrap-servers: ${oncall.kafka.bootstrap:localhost:9092}
+
+  cloud:
+    consul:
+      host: ${oncall.consul.host:localhost}
+      port: ${oncall.consul.port:8500}
+      discovery:
+        service-name: ${spring.application.name}
+        prefer-ip-address: true
+        health-check-path: /health/liveness
+        health-check-interval: 15s
+        enable-tag-override: true
+        tags: "analytics,reporting,dashboards"
+        meta:
+          description: "Analytics and reporting service with dashboards"
+          type: "analytics"
+          domain: "reporting"
+          version: "1.0.0"
+          environment: "dev"
+
+management:
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: health, info, metrics, prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+
+oncall:
+  kafka:
+    bootstrap: ${ONCALL_KAFKA_BOOTSTRAP:localhost:9092}
+  db:
+    url: ${ONCALL_DB_URL:jdbc:postgresql://localhost:5432/oncall_reporting}
+    user: ${ONCALL_DB_USER:oncall}
+    password: ${ONCALL_DB_PASSWORD:oncall_dev_change_me}
+  consul:
+    host: ${ONCALL_CONSUL_HOST:localhost}
+    port: ${ONCALL_CONSUL_PORT:8500}
+
+logging:
+  level:
+    com.oncall.reporting: INFO
+    org.flywaydb: INFO
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+  show-actuator: false
+  packages-to-scan: com.oncall

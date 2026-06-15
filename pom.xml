@@ -13,20 +13,20 @@
     <!-- Modules are added here as each service is built -->
     <modules>
         <module>domain-shared</module>
+        <module>platform/config</module>
         <module>platform/gateway</module>
-        <!-- <module>platform/config</module> -->
         <module>services/identity-svc</module>
         <module>services/team-policy-svc</module>
-        <!-- <module>services/schedule-svc</module> -->
-        <!-- <module>services/assignment-svc</module> -->
-        <!-- <module>services/worklog-svc</module> -->
-        <!-- <module>services/ticket-svc</module> -->
-        <!-- <module>services/handover-svc</module> -->
-        <!-- <module>services/availability-svc</module> -->
-        <!-- <module>services/approval-svc</module> -->
-        <!-- <module>services/notification-svc</module> -->
-        <!-- <module>services/audit-svc</module> -->
-        <!-- <module>services/reporting-svc</module> -->
+        <module>services/schedule-svc</module>
+        <module>services/assignment-svc</module>
+        <module>services/worklog-svc</module>
+        <module>services/ticket-svc</module>
+        <module>services/handover-svc</module>
+        <module>services/availability-svc</module>
+        <module>services/approval-svc</module>
+        <module>services/notification-svc</module>
+        <module>services/audit-svc</module>
+        <module>services/reporting-svc</module>
     </modules>
 
     <properties>
@@ -47,7 +47,8 @@
         <testcontainers.version>1.20.3</testcontainers.version>
         <bucket4j.version>8.10.1</bucket4j.version>
 
-        <!-- Duplo duplicate-check knobs (override on CLI) -->
+        <!-- springdoc versions -->
+        <springdoc.version>2.6.0</springdoc.version>
         <!-- mvn verify -Dduplo.minLines=12  or  -Dduplo.skip=true -->
         <duplo.minLines>8</duplo.minLines>
         <duplo.skip>false</duplo.skip>
@@ -78,6 +79,20 @@
                 <groupId>com.oncall</groupId>
                 <artifactId>domain-shared</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+
+            <!-- OpenAPI / Swagger — servlet services -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+
+            <!-- OpenAPI / Swagger — reactive services (gateway) -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+                <version>${springdoc.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

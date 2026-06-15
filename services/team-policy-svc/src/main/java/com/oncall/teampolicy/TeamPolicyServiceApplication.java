@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-@EntityScan(basePackages = {"com.oncall.domain.entity"})
+@EntityScan(basePackages = {"com.oncall.domain.entity", "com.oncall.teampolicy.outbox"})
 @EnableJpaRepositories(basePackages = {"com.oncall.teampolicy.repository"})
 public class TeamPolicyServiceApplication {
 

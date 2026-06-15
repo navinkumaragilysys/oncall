@@ -52,6 +52,14 @@ spring:
         prefer-ip-address: true
         health-check-path: /health/liveness
         health-check-interval: 15s
+        enable-tag-override: true
+        tags: "identity,auth,core"
+        meta:
+          description: "Identity and authentication management service"
+          type: "core"
+          domain: "identity"
+          version: "1.0.0"
+          environment: "dev"
 
 # ── Actuator ──────────────────────────────────────────────────────────────────
 management:
@@ -98,3 +106,16 @@ logging:
     com.oncall.identity: DEBUG
     org.springframework.security: INFO
     org.flywaydb: INFO
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+  show-actuator: false
+  packages-to-scan: com.oncall
