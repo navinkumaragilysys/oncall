@@ -3,8 +3,8 @@ package com.oncall.assignment.service;
 import com.oncall.assignment.dto.request.HistoryCreateRequest;
 import com.oncall.assignment.dto.response.HistoryResponse;
 import com.oncall.assignment.entity.OnCallHistoryEntity;
-import com.oncall.assignment.exception.ResourceNotFoundException;
-import com.oncall.assignment.outbox.OutboxPublisher;
+import com.oncall.common.exception.ResourceNotFoundException;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.assignment.repository.OnCallHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,7 @@ import java.util.UUID;
 public class HistoryService {
 
     private final OnCallHistoryRepository historyRepository;
-    private final OutboxPublisher outboxPublisher;
+    private final OutboxEventPublisher outboxPublisher;
 
     @Transactional(readOnly = true)
     public List<HistoryResponse> list(UUID memberId) {

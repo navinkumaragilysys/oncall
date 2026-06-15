@@ -4,8 +4,8 @@ import com.oncall.availability.dto.request.ReassignmentCreate;
 import com.oncall.availability.dto.request.StatusUpdateRequest;
 import com.oncall.availability.dto.response.ReassignmentResponse;
 import com.oncall.availability.entity.MidweekReassignmentEntity;
-import com.oncall.availability.exception.ResourceNotFoundException;
-import com.oncall.availability.outbox.OutboxPublisher;
+import com.oncall.common.exception.ResourceNotFoundException;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.availability.repository.MidweekReassignmentRepository;
 import com.oncall.domain.enums.RequestStatus;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import java.util.UUID;
 @Service @RequiredArgsConstructor
 public class ReassignmentService {
     private final MidweekReassignmentRepository repo;
-    private final OutboxPublisher outbox;
+    private final OutboxEventPublisher outbox;
 
     @Transactional(readOnly = true)
     public List<ReassignmentResponse> list(UUID assignmentId) {

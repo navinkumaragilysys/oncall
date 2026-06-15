@@ -4,7 +4,7 @@ import com.oncall.domain.enums.WorkLogEventType;
 import com.oncall.worklog.dto.request.WorkLogEventRequest;
 import com.oncall.worklog.entity.WorkLogEntity;
 import com.oncall.worklog.entity.WorkLogEntryEntity;
-import com.oncall.worklog.outbox.OutboxPublisher;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.worklog.repository.WorkLogEntryRepository;
 import com.oncall.worklog.repository.WorkLogRepository;
 import org.junit.jupiter.api.Test;
@@ -29,7 +29,7 @@ class WorkLogServiceTest {
 
     @Mock private WorkLogRepository workLogRepository;
     @Mock private WorkLogEntryRepository workLogEntryRepository;
-    @Mock private OutboxPublisher outboxPublisher;
+    @Mock private OutboxEventPublisher outboxPublisher;
     @InjectMocks private WorkLogService workLogService;
 
     @Test

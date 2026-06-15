@@ -1,3 +1,41 @@
+# ── Maven build outputs ───────────────────────────────────────────────────────
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# ── Java compiled outputs ─────────────────────────────────────────────────────
+*.class
+
+# ── Packaged artifacts ────────────────────────────────────────────────────────
 *.jar
+*.war
+*.ear
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
 *.lst
+
+# ── Archives ─────────────────────────────────────────────────────────────────
+*.zip
+*.tar.gz
+*.rar
 *.original
+
+# ── IDE files ─────────────────────────────────────────────────────────────────
+# IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse / STS
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# ── OS metadata ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

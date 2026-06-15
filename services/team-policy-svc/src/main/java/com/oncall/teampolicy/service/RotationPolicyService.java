@@ -3,8 +3,8 @@ package com.oncall.teampolicy.service;
 import com.oncall.domain.entity.RotationPolicy;
 import com.oncall.teampolicy.dto.request.RotationPolicyUpsertRequest;
 import com.oncall.teampolicy.dto.response.RotationPolicyResponse;
-import com.oncall.teampolicy.exception.ResourceNotFoundException;
-import com.oncall.teampolicy.outbox.OutboxPublisher;
+import com.oncall.common.exception.ResourceNotFoundException;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.teampolicy.repository.RotationPolicyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,7 @@ import java.util.UUID;
 public class RotationPolicyService {
 
     private final RotationPolicyRepository rotationPolicyRepository;
-    private final OutboxPublisher outboxPublisher;
+    private final OutboxEventPublisher outboxPublisher;
 
     @Transactional(readOnly = true)
     public List<RotationPolicyResponse> list() {

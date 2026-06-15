@@ -8,8 +8,8 @@ import com.oncall.worklog.dto.response.WorkLogEntryResponse;
 import com.oncall.worklog.dto.response.WorkLogResponse;
 import com.oncall.worklog.entity.WorkLogEntity;
 import com.oncall.worklog.entity.WorkLogEntryEntity;
-import com.oncall.worklog.exception.ResourceNotFoundException;
-import com.oncall.worklog.outbox.OutboxPublisher;
+import com.oncall.common.exception.ResourceNotFoundException;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.worklog.repository.WorkLogEntryRepository;
 import com.oncall.worklog.repository.WorkLogRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ public class WorkLogService {
 
     private final WorkLogRepository workLogRepository;
     private final WorkLogEntryRepository workLogEntryRepository;
-    private final OutboxPublisher outboxPublisher;
+    private final OutboxEventPublisher outboxPublisher;
 
     @Transactional(readOnly = true)
     public List<WorkLogResponse> list(UUID assignmentId, UUID memberId) {

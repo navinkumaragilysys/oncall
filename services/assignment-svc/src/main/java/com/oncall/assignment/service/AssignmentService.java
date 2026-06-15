@@ -4,8 +4,8 @@ import com.oncall.assignment.dto.request.AssignmentCreateRequest;
 import com.oncall.assignment.dto.request.AssignmentStatusUpdateRequest;
 import com.oncall.assignment.dto.response.AssignmentResponse;
 import com.oncall.assignment.entity.AssignmentEntity;
-import com.oncall.assignment.exception.ResourceNotFoundException;
-import com.oncall.assignment.outbox.OutboxPublisher;
+import com.oncall.common.exception.ResourceNotFoundException;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.assignment.repository.AssignmentRepository;
 import com.oncall.domain.enums.AssignmentStatus;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import java.util.UUID;
 public class AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
-    private final OutboxPublisher outboxPublisher;
+    private final OutboxEventPublisher outboxPublisher;
 
     @Transactional(readOnly = true)
     public List<AssignmentResponse> list(UUID sessionId, UUID memberId, UUID teamId, AssignmentStatus status) {

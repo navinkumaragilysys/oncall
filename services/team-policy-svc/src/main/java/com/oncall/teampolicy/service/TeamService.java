@@ -3,8 +3,8 @@ package com.oncall.teampolicy.service;
 import com.oncall.domain.entity.Team;
 import com.oncall.teampolicy.dto.request.TeamUpsertRequest;
 import com.oncall.teampolicy.dto.response.TeamResponse;
-import com.oncall.teampolicy.exception.ResourceNotFoundException;
-import com.oncall.teampolicy.outbox.OutboxPublisher;
+import com.oncall.common.exception.ResourceNotFoundException;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.teampolicy.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,7 +19,7 @@ public class TeamService {
 
     private final TeamRepository teamRepository;
     private final RotationPolicyService rotationPolicyService;
-    private final OutboxPublisher outboxPublisher;
+    private final OutboxEventPublisher outboxPublisher;
 
     @Transactional(readOnly = true)
     public List<TeamResponse> list() {

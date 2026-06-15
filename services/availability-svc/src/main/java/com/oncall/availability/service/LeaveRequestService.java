@@ -4,8 +4,8 @@ import com.oncall.availability.dto.request.LeaveRequestCreate;
 import com.oncall.availability.dto.request.StatusUpdateRequest;
 import com.oncall.availability.dto.response.LeaveRequestResponse;
 import com.oncall.availability.entity.LeaveRequestEntity;
-import com.oncall.availability.exception.ResourceNotFoundException;
-import com.oncall.availability.outbox.OutboxPublisher;
+import com.oncall.common.exception.ResourceNotFoundException;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.availability.repository.LeaveRequestRepository;
 import com.oncall.domain.enums.RequestStatus;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import java.util.UUID;
 @Service @RequiredArgsConstructor
 public class LeaveRequestService {
     private final LeaveRequestRepository repo;
-    private final OutboxPublisher outbox;
+    private final OutboxEventPublisher outbox;
 
     @Transactional(readOnly = true)
     public List<LeaveRequestResponse> list(UUID memberId, RequestStatus status) {

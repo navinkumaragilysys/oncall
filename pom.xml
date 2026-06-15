@@ -13,6 +13,7 @@
     <!-- Modules are added here as each service is built -->
     <modules>
         <module>domain-shared</module>
+        <module>platform/common-lib</module>
         <module>platform/config</module>
         <module>platform/gateway</module>
         <module>services/identity-svc</module>
@@ -74,10 +75,15 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- Internal shared module -->
+            <!-- Internal shared modules -->
             <dependency>
                 <groupId>com.oncall</groupId>
                 <artifactId>domain-shared</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.oncall</groupId>
+                <artifactId>common-lib</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

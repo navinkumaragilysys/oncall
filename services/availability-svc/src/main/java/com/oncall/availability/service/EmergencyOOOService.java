@@ -4,8 +4,8 @@ import com.oncall.availability.dto.request.EmergencyOOOCreate;
 import com.oncall.availability.dto.request.StatusUpdateRequest;
 import com.oncall.availability.dto.response.EmergencyOOOResponse;
 import com.oncall.availability.entity.EmergencyOOOEntity;
-import com.oncall.availability.exception.ResourceNotFoundException;
-import com.oncall.availability.outbox.OutboxPublisher;
+import com.oncall.common.exception.ResourceNotFoundException;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.availability.repository.EmergencyOOORepository;
 import com.oncall.domain.enums.RequestStatus;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import java.util.UUID;
 @Service @RequiredArgsConstructor
 public class EmergencyOOOService {
     private final EmergencyOOORepository repo;
-    private final OutboxPublisher outbox;
+    private final OutboxEventPublisher outbox;
 
     @Transactional(readOnly = true)
     public List<EmergencyOOOResponse> list(UUID memberId) {

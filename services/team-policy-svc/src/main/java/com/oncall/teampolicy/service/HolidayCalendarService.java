@@ -3,8 +3,8 @@ package com.oncall.teampolicy.service;
 import com.oncall.domain.entity.HolidayCalendar;
 import com.oncall.teampolicy.dto.request.HolidayCalendarUpsertRequest;
 import com.oncall.teampolicy.dto.response.HolidayCalendarResponse;
-import com.oncall.teampolicy.exception.ResourceNotFoundException;
-import com.oncall.teampolicy.outbox.OutboxPublisher;
+import com.oncall.common.exception.ResourceNotFoundException;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.teampolicy.repository.HolidayCalendarRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,7 @@ import java.util.UUID;
 public class HolidayCalendarService {
 
     private final HolidayCalendarRepository holidayCalendarRepository;
-    private final OutboxPublisher outboxPublisher;
+    private final OutboxEventPublisher outboxPublisher;
 
     @Transactional(readOnly = true)
     public List<HolidayCalendarResponse> list() {

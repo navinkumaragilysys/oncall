@@ -4,8 +4,8 @@ import com.oncall.availability.dto.request.StatusUpdateRequest;
 import com.oncall.availability.dto.request.SwapRequestCreate;
 import com.oncall.availability.dto.response.SwapRequestResponse;
 import com.oncall.availability.entity.SwapRequestEntity;
-import com.oncall.availability.exception.ResourceNotFoundException;
-import com.oncall.availability.outbox.OutboxPublisher;
+import com.oncall.common.exception.ResourceNotFoundException;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.availability.repository.SwapRequestRepository;
 import com.oncall.domain.enums.RequestStatus;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import java.util.UUID;
 @Service @RequiredArgsConstructor
 public class SwapRequestService {
     private final SwapRequestRepository repo;
-    private final OutboxPublisher outbox;
+    private final OutboxEventPublisher outbox;
 
     @Transactional(readOnly = true)
     public List<SwapRequestResponse> list(UUID requestorId) {

@@ -5,8 +5,8 @@ import com.oncall.schedule.dto.request.SessionStatusUpdateRequest;
 import com.oncall.schedule.dto.request.SessionUpsertRequest;
 import com.oncall.schedule.dto.response.SessionResponse;
 import com.oncall.schedule.entity.OnCallSessionEntity;
-import com.oncall.schedule.exception.ResourceNotFoundException;
-import com.oncall.schedule.outbox.OutboxPublisher;
+import com.oncall.common.exception.ResourceNotFoundException;
+import com.oncall.common.outbox.OutboxEventPublisher;
 import com.oncall.schedule.repository.OnCallSessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,7 +21,7 @@ import java.util.UUID;
 public class SessionService {
 
     private final OnCallSessionRepository onCallSessionRepository;
-    private final OutboxPublisher outboxPublisher;
+    private final OutboxEventPublisher outboxPublisher;
 
     @Transactional(readOnly = true)
     public List<SessionResponse> list(UUID teamId, SessionStatus status) {
