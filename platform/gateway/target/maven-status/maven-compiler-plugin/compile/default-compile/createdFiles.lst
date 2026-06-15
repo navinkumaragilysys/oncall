@@ -1,4 +1,0 @@
-com/oncall/gateway/filter/EmailDomainFilter.class
-com/oncall/gateway/config/SecurityConfig.class
-com/oncall/gateway/GatewayApplication.class
-com/oncall/gateway/config/RateLimitConfig.class

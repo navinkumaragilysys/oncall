@@ -1,4 +1,0 @@
-/home/nkumarx/oncall/platform/gateway/src/main/java/com/oncall/gateway/GatewayApplication.java
-/home/nkumarx/oncall/platform/gateway/src/main/java/com/oncall/gateway/config/RateLimitConfig.java
-/home/nkumarx/oncall/platform/gateway/src/main/java/com/oncall/gateway/config/SecurityConfig.java
-/home/nkumarx/oncall/platform/gateway/src/main/java/com/oncall/gateway/filter/EmailDomainFilter.java
